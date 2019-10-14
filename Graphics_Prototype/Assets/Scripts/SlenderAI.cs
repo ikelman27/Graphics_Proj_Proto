@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 // struct to hold values for each agro level
 public struct AgroLevel
@@ -23,19 +24,32 @@ public class SlenderAI : MonoBehaviour
     private AgroLevel[] level;
     private int agroLevel;
     private float timer;
+    private float staticAlpha;
+    private float distance;
+    private bool proximityCheck;
+    private Vector3 lastPos;
+    private float standingTimer;
+    public bool stopTeleport;
+    public Image staticFX;
+
     // Start is called before the first frame update
     void Start()
     {
         player = GameObject.Find("Character").transform;
 
         agroLevel = 0;
+        staticAlpha = 0;
+        distance = 0;
+        proximityCheck = false;
+        lastPos = Vector3.zero;
+        standingTimer = 0;
 
         // create the agro level values
         level = new AgroLevel[4];
-        level[0] = new AgroLevel(20f, 30f, 7f);
-        level[1] = new AgroLevel(15f, 20f, 5f);
-        level[2] = new AgroLevel(10f, 15f, 3f);
-        level[3] = new AgroLevel(7f, 10f, 1.5f);
+        level[0] = new AgroLevel(40f, 50f, 7f);
+        level[1] = new AgroLevel(30f, 40f, 5f);
+        level[2] = new AgroLevel(20f, 30f, 3f);
+        level[3] = new AgroLevel(10f, 20f, 1.5f);
 
         // move him to a valid location
         Teleport();
@@ -47,11 +61,21 @@ public class SlenderAI : MonoBehaviour
         // update the timer
         timer += Time.deltaTime;
 
+        GetDistance();
+        CheckForProximity();
+        CheckForStatic();
+        CheckStandingStill();
+
+        staticFX.color = new Color(255f,255f,255f, staticAlpha);
+
         // if he should teleport, teleport and reset the timer
-        if(timer >= level[agroLevel].teleportTimer)
+        if(timer >= level[agroLevel].teleportTimer && !proximityCheck && !stopTeleport)
         {
-            Teleport();
-            timer = 0;
+            if(CheckLineOfSight())
+            {
+                Teleport();
+                timer = 0;
+            }
         }
     }
 
@@ -72,6 +96,91 @@ public class SlenderAI : MonoBehaviour
 
         // add to position of player
         transform.position = player.position + target;
+    }
+
+    // returns true if slenderman is not visible
+    // returns false if slenderman is visible
+    private bool CheckLineOfSight()
+    {
+        // don't teleport if the player is looking at slender
+        if (GetComponent<Renderer>().isVisible)
+        {
+            // raycast to see if anything is in the way
+            RaycastHit hit;
+            Physics.Raycast(player.position, transform.position - player.position, out hit);
+
+            // check if we hit slender or a random object
+            if(hit.transform.name != "Slenderman(Clone)")
+            {
+                return true;
+            }
+            else
+            {
+                // clear line of sight
+                return false;
+            }
+        }
+        else
+        {
+            return true;
+        }
+    }
+
+    private void CheckForStatic()
+    {
+        // if outside field of view, don't do anything
+        if (CheckLineOfSight())
+        {
+            // reduce the static
+            staticAlpha = Mathf.Clamp(staticAlpha - 0.01f, 0f, 1f);
+            return;
+        }
+        // get the dot product of the player forward to the angle between slender and player
+        // the closer you look at slender, the faster the static appears
+        float dotVal = Mathf.Abs(Vector3.Dot(player.forward.normalized, (transform.position - player.position).normalized));
+
+        // map to a useable value
+        float val = (20f / distance) / 200f * dotVal;
+
+        // add to the static value
+        staticAlpha = Mathf.Clamp(staticAlpha + val, 0f, 1f);
+    }
+
+    private void CheckForProximity()
+    {
+        if (distance < 8f)
+        {
+            proximityCheck = true;
+
+            float val = (0.1f / distance);
+
+            // add to the static value
+            staticAlpha = Mathf.Clamp(staticAlpha + val, 0f, 1f);
+        }
+        else
+            proximityCheck = false;
+    }
+
+    private void CheckStandingStill()
+    {
+        if(lastPos == player.position)
+        {
+            standingTimer += Time.deltaTime;
+
+            if (standingTimer >= 5f)
+                staticAlpha += 0.02f;
+        }
+        else
+        {
+            standingTimer = 0;
+        }
+
+        lastPos = player.position;
+    }
+
+    private void GetDistance()
+    {
+        distance = Vector3.Distance(player.position, transform.position);
     }
 
     public void IncreaseLevel()
