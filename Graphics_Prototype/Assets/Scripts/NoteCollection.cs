@@ -10,9 +10,10 @@ public class NoteCollection : MonoBehaviour
     void Start()
     {
         checkForInput = false;
-        gm = GameObject.Find("GameManager").GetComponent<GameManager>();
+        gm = GameManager.Instance;
     }
-
+        
+    
     // Update is called once per frame
     void Update()
     {

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-
+using UnityEngine.SceneManagement;
 public class GameManager : MonoBehaviour
 {
     private int notesCollected;
@@ -11,27 +11,69 @@ public class GameManager : MonoBehaviour
     public GameObject slenderPrefab;
     private SlenderAI slenderRef;
     public Image staticFX;
+
+    public static GameManager Instance;
+
+
+    [SerializeField]
+    private GameObject SpawnLocationParrent = null;
+
+    public Vector2 Bounds = new Vector2(150, 150);
+
+    private List<Transform> SpawnLocations;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(this.gameObject);
+        }
+        else
+        {
+            Destroy(this.gameObject);
+        }
+    }
     // Start is called before the first frame update
     void Start()
     {
+
         notesCollected = 0;
-
         SpawnNotes();
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 
     private void SpawnNotes()
     {
-        // randomly place notes around the scene (for testing)
-        for(int i = 0; i < totalNotes; i++)
+        if (SpawnLocationParrent != null)
         {
-            Vector3 pos = new Vector3(Random.Range(0f, 50f), 1.5f, Random.Range(0f, 50f));
-            Instantiate(notePrefab, pos, Quaternion.identity);
+            SpawnLocations = new List<Transform>();
+            foreach (Transform child in SpawnLocationParrent.transform)
+            {
+                SpawnLocations.Add(child);
+            }
+        }
+
+        if (SpawnLocations.Count > totalNotes)
+        {
+            int maxValue = SpawnLocations.Count - 1;
+            List<Transform> spawnedObj = new List<Transform>(SpawnLocations);
+
+            for (int i = 0; i < totalNotes; i++)
+            {
+                int spawnIndex = Random.Range(0, maxValue);
+                Instantiate(notePrefab, spawnedObj[spawnIndex].position, Quaternion.identity, spawnedObj[spawnIndex]);
+                spawnedObj.RemoveAt(spawnIndex);
+                maxValue--;
+            }
+        }
+        else
+        {
+            // randomly place notes around the scene (for testing)
+            for (int i = 0; i < totalNotes; i++)
+            {
+                Vector3 pos = new Vector3(Random.Range(0f, 50f), 1.5f, Random.Range(0f, 50f));
+                Instantiate(notePrefab, pos, Quaternion.identity);
+            }
         }
     }
 
@@ -45,10 +87,13 @@ public class GameManager : MonoBehaviour
     {
         // increment number of notes collected
         notesCollected++;
-
+        if (notesCollected == totalNotes)
+        {
+            StartGameOver(true);
+        }
         // if this is the first note the player colected, spawn slender
         // otherwise increase his AI level
-        if(notesCollected == 1)
+        if (notesCollected == 1)
         {
             SpawnSlenderman();
         }
@@ -56,6 +101,7 @@ public class GameManager : MonoBehaviour
         {
             slenderRef.IncreaseLevel();
         }
+
     }
 
     private void SpawnSlenderman()
@@ -65,4 +111,24 @@ public class GameManager : MonoBehaviour
         slenderRef = temp.GetComponent<SlenderAI>();
         slenderRef.staticFX = staticFX;
     }
+
+    public void StartGameOver(bool win)
+    {
+          Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        if(win){
+            SceneManager.LoadScene("Game Win", LoadSceneMode.Single);
+            return;
+        }
+        else{
+            SceneManager.LoadScene("Game Loss");
+        }
+
+
+    }
+
+    public static void ExitGame(){
+        Application.Quit();
+    }
+
 }

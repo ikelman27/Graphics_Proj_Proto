@@ -32,11 +32,13 @@ public class SlenderAI : MonoBehaviour
     public bool stopTeleport;
     public Image staticFX;
 
+    private GameManager gm;
+
     // Start is called before the first frame update
     void Start()
     {
         player = GameObject.Find("Character").transform;
-
+        gm = GameManager.Instance;
         agroLevel = 0;
         staticAlpha = 0;
         distance = 0;
@@ -77,6 +79,10 @@ public class SlenderAI : MonoBehaviour
                 timer = 0;
             }
         }
+
+        if(staticAlpha > 1.0f){
+            gm.StartGameOver(false);
+        }
     }
 
     private void Teleport()
@@ -93,9 +99,15 @@ public class SlenderAI : MonoBehaviour
         // multiply by range value (random between min and max per level)
         float val = Random.Range(level[agroLevel].minRange, level[agroLevel].maxRange);
         target = target.normalized * val;
-
+      
         // add to position of player
-        transform.position = player.position + target;
+        Vector3 newPos = player.position + target;
+
+        //Make sure the creature is spawned withing 10 feet of the edge of the area
+        float distanceFromEdge = 10;
+        newPos.x = Mathf.Clamp(newPos.x, -distanceFromEdge, gm.Bounds.x + distanceFromEdge);
+        newPos.y = Mathf.Clamp(newPos.y, -distanceFromEdge, gm.Bounds.y + distanceFromEdge);
+        transform.position = newPos;
     }
 
     // returns true if slenderman is not visible
@@ -132,7 +144,7 @@ public class SlenderAI : MonoBehaviour
         if (CheckLineOfSight())
         {
             // reduce the static
-            staticAlpha = Mathf.Clamp(staticAlpha - 0.01f, 0f, 1f);
+            staticAlpha = Mathf.Clamp(staticAlpha - Time.deltaTime, 0f, 1f);
             return;
         }
         // get the dot product of the player forward to the angle between slender and player
@@ -141,7 +153,7 @@ public class SlenderAI : MonoBehaviour
 
         // map to a useable value
         float val = (20f / distance) / 200f * dotVal;
-
+        
         // add to the static value
         staticAlpha = Mathf.Clamp(staticAlpha + val, 0f, 1f);
     }
@@ -152,8 +164,8 @@ public class SlenderAI : MonoBehaviour
         {
             proximityCheck = true;
 
-            float val = (0.1f / distance);
-
+            float val = (1f / distance);
+            val *= Time.deltaTime;
             // add to the static value
             staticAlpha = Mathf.Clamp(staticAlpha + val, 0f, 1f);
         }
@@ -168,7 +180,7 @@ public class SlenderAI : MonoBehaviour
             standingTimer += Time.deltaTime;
 
             if (standingTimer >= 5f)
-                staticAlpha += 0.02f;
+                staticAlpha += .5f * Time.deltaTime;
         }
         else
         {
