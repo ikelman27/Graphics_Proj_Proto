@@ -80,7 +80,7 @@ public class SlenderAI : MonoBehaviour
             }
         }
 
-        if(staticAlpha > 1.0f){
+        if(staticAlpha >= 1.0f){
             gm.StartGameOver(false);
         }
     }
